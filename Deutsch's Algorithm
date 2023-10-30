@@ -1,0 +1,61 @@
+from qiskit import QuantumCircuit
+
+
+def deutsch_function(case: int):
+    """
+    Generate a valid Deutsch function as a `QuantumCircuit`.
+    """
+    if case not in [1, 2, 3, 4]:
+        raise ValueError("`case` must be 1, 2, 3, or 4.")
+
+    f = QuantumCircuit(2) #2개의 큐비트로 이루어진 회로 만들기
+    if case in [2, 3]: 
+        f.cx(0, 1) #CX (CNOT) gate를 cotrol 큐비트 0와 target 큐비트 1에 추가. -> 벨 상태
+    if case in [3, 4]:
+        f.x(1) #큐비트 1dp X gate를 넣는다.
+    return f
+
+#시각화
+deutsch_function(3).draw()
+
+def compile_circuit(function: QuantumCircuit):
+    """
+    Compiles a circuit for use in Deutsch's algorithm.
+    """
+    n = function.num_qubits - 1
+    qc = QuantumCircuit(n + 1, n) # n+1개의 qubits와 n개의 classical bits로 이루어진 양자 회로
+
+    qc.x(n) #n의 큐비트에 X gate 추가
+    qc.h(range(n + 1)) # Add a H gate on qubit (0~n)
+
+    qc.barrier()
+    qc.compose(function, inplace=True) # compose circuit with 'function' curcuit
+    qc.barrier()
+
+    qc.h(range(n))
+    qc.measure(range(n), range(n)) # map the quantum measurement to the claasical bits
+
+    return qc
+
+compile_circuit(
+    deutsch_function(3)
+).draw()
+
+from qiskit_aer import AerSimulator
+
+
+def deutsch_algorithm(function: QuantumCircuit):
+    """
+    Determine if a Deutsch function is constant or balanced.
+    """
+    qc = compile_circuit(function)
+
+    result = AerSimulator().run(qc, shots=1, memory=True).result()
+    measurements = result.get_memory() #결과 리스트 형태
+    if measurements[0] == "0":
+        return "constant"
+    return "balanced"
+
+f = deutsch_function(3)
+display(f.draw())
+deutsch_algorithm(f)
